@@ -12,7 +12,7 @@ local settings = {
     aimbot = false,
     wallCheck = false,
     fov = 120,
-    smoothness = 45,
+    smoothness = 30,
     predict = true,
     predictStrength = 5,
     esp = true,
@@ -138,6 +138,7 @@ Frame.Position = UDim2.new(0, 50, 0, 150)
 Frame.BackgroundColor3 = Theme.Background
 Frame.BackgroundTransparency = Theme.BackgroundTrans
 Frame.BorderSizePixel = 0
+Frame.ClipsDescendants = true -- Скрывает все, что выезжает за границы меню
 Frame.Visible = true
 Frame.Parent = ScreenGui
 
@@ -185,6 +186,8 @@ Divider.BackgroundColor3 = Theme.Border
 Divider.BorderSizePixel = 0
 
 local tabs = {}
+local activePage = nil
+
 local function createPage(name)
     local Page = Instance.new("Frame", Frame)
     Page.Name = name
@@ -227,18 +230,50 @@ local function createTabButton(name, pageObject, isDefault)
     Indicator.Visible = isDefault
 
     Btn.MouseButton1Click:Connect(function()
+        if activePage == pageObject then return end
+
+        local oldIdx, newIdx = 1, 1
+        for i, tab in ipairs(tabs) do
+            if tab.page == activePage then oldIdx = i end
+            if tab.page == pageObject then newIdx = i end
+        end
+        local dir = (newIdx > oldIdx) and 1 or -1
+
         for _, tab in pairs(tabs) do
             tab.btn.TextColor3 = Theme.TextSub
             tab.ind.Visible = false
-            tab.page.Visible = false
         end
+        
         Btn.TextColor3 = Theme.Accent
         Indicator.Visible = true
+
+        local oldPage = activePage
+        activePage = pageObject
+        
+        if oldPage then
+            TweenService:Create(oldPage, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                Position = UDim2.new(-dir, 0, 0, 85)
+            }):Play()
+            task.delay(0.3, function()
+                if activePage ~= oldPage then
+                    oldPage.Visible = false
+                end
+            end)
+        end
+        
+        pageObject.Position = UDim2.new(dir, 0, 0, 85)
         pageObject.Visible = true
+        TweenService:Create(pageObject, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0, 0, 0, 85)
+        }):Play()
     end)
 
     table.insert(tabs, {btn = Btn, ind = Indicator, page = pageObject})
-    if isDefault then pageObject.Visible = true end
+    if isDefault then 
+        activePage = pageObject
+        pageObject.Position = UDim2.new(0, 0, 0, 85)
+        pageObject.Visible = true 
+    end
 end
 
 local BottomPanel = Instance.new("Frame", Frame)
@@ -276,9 +311,16 @@ local function createGroup(parent)
     Instance.new("UICorner", Group).CornerRadius = UDim.new(0, 10)
     local Stroke = Instance.new("UIStroke", Group)
     Stroke.Thickness = 1; Stroke.Color = Theme.Border; Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    
     local Layout = Instance.new("UIListLayout", Group)
     Layout.SortOrder = Enum.SortOrder.LayoutOrder
-    Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() Group.Size = UDim2.new(1, 0, 0, Layout.AbsoluteContentSize.Y) end)
+    
+    local function updateSize()
+        Group.Size = UDim2.new(1, 0, 0, Layout.AbsoluteContentSize.Y)
+    end
+    Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateSize)
+    task.defer(updateSize)
+    
     return Group
 end
 
@@ -311,6 +353,7 @@ local function createToggle(name, parent, state, callback)
         TweenService:Create(BtnBG, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = targetColor}):Play()
         TweenService:Create(Indicator, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Position = targetPos, BackgroundColor3 = targetIndColor}):Play()
     end)
+    return Container
 end
 
 local function createSlider(name, parent, min, max, default, callback)
@@ -453,7 +496,8 @@ createSubButton("Names", EspGrid, settings.espNames, function(v) settings.espNam
 createToggle("Tracers", EspGroup, settings.tracers, function(v) settings.tracers = v end)
 
 local EnvGroup = createGroup(VisualsRight)
-createToggle("Vehicle ESP", EnvGroup, settings.vehicleEsp, function(v) 
+
+local vehicleToggle = createToggle("Vehicle ESP", EnvGroup, settings.vehicleEsp, function(v) 
     settings.vehicleEsp = v 
     if not v then
         for i, draw in pairs(vehicleDrawings) do
@@ -462,6 +506,17 @@ createToggle("Vehicle ESP", EnvGroup, settings.vehicleEsp, function(v)
         end
     end
 end)
+
+local waitLabel = Instance.new("TextLabel", vehicleToggle)
+waitLabel.Size = UDim2.new(0, 100, 1, 0)
+waitLabel.AnchorPoint = Vector2.new(1, 0.5)
+waitLabel.Position = UDim2.new(1, -62, 0.5, 0)
+waitLabel.BackgroundTransparency = 1
+waitLabel.Text = "wait ≈15 seconds"
+waitLabel.TextColor3 = Theme.TextSub
+waitLabel.Font = Enum.Font.Gotham
+waitLabel.TextSize = 10
+waitLabel.TextXAlignment = Enum.TextXAlignment.Right
 
 createToggle("Submarine ESP", EnvGroup, settings.submarineEsp, function(v) 
     settings.submarineEsp = v
@@ -797,4 +852,3 @@ table.insert(scriptConnections, RunService.RenderStepped:Connect(function()
         end
     end
 end))
-
