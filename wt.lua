@@ -10,8 +10,6 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 
-local TWEEN_SPEED = 100
-
 local settings = {
     aimbot = false, wallCheck = false, fov = 120, smoothness = 45,
     predict = true, predictStrength = 5,
@@ -19,7 +17,7 @@ local settings = {
     tracers = false, clickTp = false,
     vehicleEsp = false, submarineEsp = true, uavEsp = true, 
     ugvEsp = true,
-    teamCheck = true, noclip = false, fly = false, flySpeed = 50,
+    teamCheck = true, noclip = false, fly = false, flySpeed = 250
     autoAirdrop = false, autoDrone = false,
     binds = { aimbot = nil, fly = nil, noclip = nil, clickTp = nil }
 }
@@ -28,6 +26,8 @@ local uiUpdaters = {}
 local scriptConnections = {}
 local activeTweens = {}
 local isScriptActive = true
+local isLoaded = false
+local isLoadingConfig = false
 local baseSpawnCFrame = nil
 local wasNoclip = false
 local isMiscPageOpen = false
@@ -119,6 +119,12 @@ ScreenGui.ResetOnSpawn = false
 pcall(function() if syn and syn.protect_gui then syn.protect_gui(ScreenGui) end end)
 ScreenGui.Parent = targetParent
 
+local LoadingGui = Instance.new("ScreenGui")
+LoadingGui.Name = "CustomLoadingOverlay"
+LoadingGui.ResetOnSpawn = false
+pcall(function() if syn and syn.protect_gui then syn.protect_gui(LoadingGui) end end)
+LoadingGui.Parent = targetParent
+
 local StatsGui = Instance.new("ScreenGui")
 StatsGui.Name = "CustomStatsOverlay"
 StatsGui.ResetOnSpawn = false
@@ -185,6 +191,38 @@ local Theme = {
     TextSub = Color3.fromRGB(170, 170, 170), Border = Color3.fromRGB(60, 60, 60), OffColor = Color3.fromRGB(30, 30, 30)
 }
 
+local LoadingFrame = Instance.new("Frame", LoadingGui)
+LoadingFrame.Size = UDim2.new(0, 220, 0, 55)
+LoadingFrame.AnchorPoint = Vector2.new(0.5, 0)
+LoadingFrame.Position = UDim2.new(0.5, 0, 0, 20)
+LoadingFrame.BackgroundColor3 = Theme.PanelBG
+LoadingFrame.BackgroundTransparency = 0.2
+Instance.new("UICorner", LoadingFrame).CornerRadius = UDim.new(0, 8)
+local LStroke = Instance.new("UIStroke", LoadingFrame)
+LStroke.Color = Theme.Border
+LStroke.Thickness = 1.5
+
+local LoadingText = Instance.new("TextLabel", LoadingFrame)
+LoadingText.Size = UDim2.new(1, 0, 0, 20)
+LoadingText.Position = UDim2.new(0, 0, 0, 8)
+LoadingText.BackgroundTransparency = 1
+LoadingText.Text = "Loading..."
+LoadingText.TextColor3 = Theme.Accent
+LoadingText.Font = Enum.Font.GothamBold
+LoadingText.TextSize = 13
+
+local LoadBarBG = Instance.new("Frame", LoadingFrame)
+LoadBarBG.Size = UDim2.new(1, -30, 0, 6)
+LoadBarBG.AnchorPoint = Vector2.new(0.5, 0)
+LoadBarBG.Position = UDim2.new(0.5, 0, 0, 35)
+LoadBarBG.BackgroundColor3 = Theme.OffColor
+Instance.new("UICorner", LoadBarBG).CornerRadius = UDim.new(1, 0)
+
+local LoadBarFill = Instance.new("Frame", LoadBarBG)
+LoadBarFill.Size = UDim2.new(0, 0, 1, 0)
+LoadBarFill.BackgroundColor3 = Theme.Accent
+Instance.new("UICorner", LoadBarFill).CornerRadius = UDim.new(1, 0)
+
 local TpWarningLabel = Instance.new("TextLabel", ScreenGui)
 TpWarningLabel.Size = UDim2.new(0, 420, 0, 40)
 TpWarningLabel.AnchorPoint = Vector2.new(0.5, 0)
@@ -209,6 +247,7 @@ Frame.BackgroundColor3 = Theme.Background
 Frame.BackgroundTransparency = Theme.BackgroundTrans
 Frame.BorderSizePixel = 0
 Frame.ClipsDescendants = true
+Frame.Visible = false
 Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 14)
 local MainStroke = Instance.new("UIStroke", Frame)
 MainStroke.Thickness = 1.5
@@ -223,10 +262,50 @@ DevToolsBtn.Text = "Dev Tools"
 DevToolsBtn.TextColor3 = Theme.Accent
 DevToolsBtn.Font = Enum.Font.GothamBold
 DevToolsBtn.TextSize = 12
+DevToolsBtn.Visible = false
 Instance.new("UICorner", DevToolsBtn).CornerRadius = UDim.new(0, 6)
 local DTStroke = Instance.new("UIStroke", DevToolsBtn)
 DTStroke.Color = Theme.Border
 DTStroke.Thickness = 1
+
+local loadTw = TweenService:Create(LoadBarFill, TweenInfo.new(12.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 1, 0)})
+table.insert(activeTweens, loadTw)
+loadTw:Play()
+
+loadTw.Completed:Connect(function()
+    if not isScriptActive then return end
+    LoadingText.Text = "Loaded!"
+    task.wait(0.5)
+    if not isScriptActive then return end
+    
+    local fadeOut1 = TweenService:Create(LoadingFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 1})
+    local fadeOut2 = TweenService:Create(LoadingText, TweenInfo.new(0.5), {TextTransparency = 1})
+    local fadeOut3 = TweenService:Create(LStroke, TweenInfo.new(0.5), {Transparency = 1})
+    local fadeOut4 = TweenService:Create(LoadBarBG, TweenInfo.new(0.5), {BackgroundTransparency = 1})
+    local fadeOut5 = TweenService:Create(LoadBarFill, TweenInfo.new(0.5), {BackgroundTransparency = 1})
+    
+    table.insert(activeTweens, fadeOut1)
+    table.insert(activeTweens, fadeOut2)
+    table.insert(activeTweens, fadeOut3)
+    table.insert(activeTweens, fadeOut4)
+    table.insert(activeTweens, fadeOut5)
+    
+    fadeOut1:Play(); fadeOut2:Play(); fadeOut3:Play(); fadeOut4:Play(); fadeOut5:Play()
+    fadeOut1.Completed:Wait()
+    
+    if not isScriptActive then return end
+    LoadingGui.Enabled = false
+    isLoaded = true
+    
+    Frame.Size = UDim2.new(0, 480, 0, 520)
+    Frame.Position = UDim2.new(0, 70, 0, 170)
+    Frame.Visible = true
+    DevToolsBtn.Visible = true
+    
+    local menuTw = TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 520, 0, 560), Position = UDim2.new(0, 50, 0, 150)})
+    table.insert(activeTweens, menuTw)
+    menuTw:Play()
+end)
 
 local DevPassModal = Instance.new("Frame", ScreenGui)
 DevPassModal.Size = UDim2.new(1, 0, 1, 0)
@@ -914,7 +993,7 @@ createSlider("Predict Strength", AimbotGroup, 1, 100, settings.predictStrength, 
 local MovementGroup = createGroup(CombatRight)
 createToggle("Noclip", MovementGroup, "noclip")
 createToggle("Fly", MovementGroup, "fly")
-createSlider("Fly Speed", MovementGroup, 10, 300, settings.flySpeed, 5, "flySpeed")
+createSlider("Fly Speed", MovementGroup, 5, 2000, settings.flySpeed, 5, "flySpeed")
 
 local MiscCombatGroup = createGroup(CombatRight)
 createToggle("Click TP (LMB)", MiscCombatGroup, "clickTp")
@@ -975,8 +1054,9 @@ local autoDroneOriginalPos = nil
 
 local AutoFarmGroup = createGroup(AutoLeft)
 createToggle("Auto Airdrop", AutoFarmGroup, "autoAirdrop")
+
 local ADContainer = createToggle("Auto Drone", AutoFarmGroup, "autoDrone", function(state)
-    if not state and autoDroneOriginalPos then
+    if not state and autoDroneOriginalPos and not isLoadingConfig then
         local char = LocalPlayer.Character
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
         local hum = char and char:FindFirstChild("Humanoid")
@@ -1092,6 +1172,7 @@ task.wait(10)
 
 DroneIdcBtn.MouseButton1Click:Connect(function()
     local tw = TweenService:Create(DroneWindow, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
+    table.insert(activeTweens, tw)
     tw:Play()
     tw.Completed:Wait()
     DroneModal.Visible = false
@@ -1112,7 +1193,9 @@ Instance.new("UIStroke", InfoBtn).Color = Theme.Border
 InfoBtn.MouseButton1Click:Connect(function()
     DroneModal.Visible = true
     DroneWindow.Size = UDim2.new(0, 0, 0, 0)
-    TweenService:Create(DroneWindow, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 260, 0, 140)}):Play()
+    local tw = TweenService:Create(DroneWindow, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 260, 0, 140)})
+    table.insert(activeTweens, tw)
+    tw:Play()
 end)
 
 local BindsGroup = createGroup(MiscLeft)
@@ -1284,6 +1367,7 @@ createDualActionButtons("Save Config", "Load Config", ConfigGroup,
         if readfile and isfile then
             pcall(function()
                 if isfile("WihikkCfg_"..currentConfigName..".json") then
+                    isLoadingConfig = true
                     local decoded = HttpService:JSONDecode(readfile("WihikkCfg_"..currentConfigName..".json"))
                     for k, v in pairs(decoded) do
                         if k == "binds" then
@@ -1295,8 +1379,10 @@ createDualActionButtons("Save Config", "Load Config", ConfigGroup,
                             if uiUpdaters[k] then uiUpdaters[k](v) else settings[k] = v end
                         end
                     end
+                    isLoadingConfig = false
                 end
             end)
+            isLoadingConfig = false
         end
     end
 )
@@ -1493,15 +1579,67 @@ BtnHop.MouseButton1Click:Connect(function()
 end)
 
 local Footer = Instance.new("TextLabel", Frame)
-Footer.Size = UDim2.new(1, 0, 0, 20)
-Footer.Position = UDim2.new(0, 0, 1, -25)
+Footer.Size = UDim2.new(0, 110, 0, 20)
+Footer.Position = UDim2.new(0, 20, 1, -25)
 Footer.BackgroundTransparency = 1
-Footer.Text = "[K] - Toggle Menu  •  [Delete] - Unload"
+Footer.Text = "[K] - Hide Menu"
 Footer.TextColor3 = Theme.TextSub
 Footer.Font = Enum.Font.GothamMedium
 Footer.TextSize = 11
+Footer.TextXAlignment = Enum.TextXAlignment.Left
 
-local guiVisible = true
+local BtnHide = Instance.new("TextButton", Frame)
+BtnHide.Size = UDim2.new(0, 95, 0, 20)
+BtnHide.AnchorPoint = Vector2.new(1, 0)
+BtnHide.Position = UDim2.new(0.5, -5, 1, -25)
+BtnHide.BackgroundColor3 = Theme.OffColor
+BtnHide.Text = "Hide Menu"
+BtnHide.TextColor3 = Theme.TextMain
+BtnHide.Font = Enum.Font.GothamMedium
+BtnHide.TextSize = 10
+BtnHide.AutoButtonColor = false
+Instance.new("UICorner", BtnHide).CornerRadius = UDim.new(0, 4)
+local StrokeHide = Instance.new("UIStroke", BtnHide)
+StrokeHide.Color = Theme.Border
+StrokeHide.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+BtnHide.MouseButton1Click:Connect(function()
+    guiVisible = false
+    Frame.Visible = false
+    DevToolsBtn.Visible = false
+end)
+
+local BtnUnload = Instance.new("TextButton", Frame)
+BtnUnload.Size = UDim2.new(0, 95, 0, 20)
+BtnUnload.AnchorPoint = Vector2.new(0, 0)
+BtnUnload.Position = UDim2.new(0.5, 5, 1, -25)
+BtnUnload.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+BtnUnload.Text = "Unload Script"
+BtnUnload.TextColor3 = Color3.fromRGB(255, 255, 255)
+BtnUnload.Font = Enum.Font.GothamMedium
+BtnUnload.TextSize = 10
+BtnUnload.AutoButtonColor = false
+Instance.new("UICorner", BtnUnload).CornerRadius = UDim.new(0, 4)
+local StrokeUnload = Instance.new("UIStroke", BtnUnload)
+StrokeUnload.Color = Theme.Border
+StrokeUnload.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+BtnUnload.MouseButton1Click:Connect(function()
+    UnloadScript()
+end)
+
+local FooterUnload = Instance.new("TextLabel", Frame)
+FooterUnload.Size = UDim2.new(0, 130, 0, 20)
+FooterUnload.AnchorPoint = Vector2.new(1, 0)
+FooterUnload.Position = UDim2.new(1, -20, 1, -25)
+FooterUnload.BackgroundTransparency = 1
+FooterUnload.Text = "[Delete] - Unload Script"
+FooterUnload.TextColor3 = Theme.TextSub
+FooterUnload.Font = Enum.Font.GothamMedium
+FooterUnload.TextSize = 11
+FooterUnload.TextXAlignment = Enum.TextXAlignment.Right
+
+local guiVisible = false
 
 local sysCache = { subs = {}, uavs = {}, ugvs = {} }
 local lastSysCheck = 0
@@ -1541,6 +1679,7 @@ local function UnloadScript()
     
     pcall(function() VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game) end)
     
+    if LoadingGui then pcall(function() LoadingGui:Destroy() end) end
     if ScreenGui then pcall(function() ScreenGui:Destroy() end) end
     if StatsGui then pcall(function() StatsGui:Destroy() end) end
     
@@ -1574,7 +1713,7 @@ table.insert(scriptConnections, UserInputService.InputBegan:Connect(function(inp
         for key, bindCode in pairs(settings.binds) do
             if input.KeyCode == bindCode and uiUpdaters[key] then uiUpdaters[key](not settings[key]) end
         end
-        if input.KeyCode == Enum.KeyCode.K then 
+        if input.KeyCode == Enum.KeyCode.K and isLoaded then 
             guiVisible = not guiVisible
             Frame.Visible = guiVisible 
             DevToolsBtn.Visible = guiVisible
@@ -1681,9 +1820,9 @@ table.insert(scriptConnections, RunService.RenderStepped:Connect(function()
         if not espObjects[player] then
             espObjects[player] = {
                 box = createDrawing("Square", {Thickness = 1, Visible = false}),
-                health = createDrawing("Text", {Center = true, Size = 13, Font = 2, Color = Color3.fromRGB(100, 255, 100), Outline = true, Visible = false}),
-                name = createDrawing("Text", {Center = true, Size = 13, Font = 2, Color = Color3.new(1,1,1), Outline = true, Visible = false}),
-                dist = createDrawing("Text", {Center = true, Size = 13, Font = 2, Color = Color3.new(1,1,1), Outline = true, Visible = false})
+                health = createDrawing("Text", {Center = true, Size = 13, Font = 2, Color = Color3.fromRGB(100, 255, 100), Outline = true, OutlineColor = Color3.new(0, 0, 0), Visible = false}),
+                name = createDrawing("Text", {Center = true, Size = 13, Font = 2, Color = Color3.new(1,1,1), Outline = true, OutlineColor = Color3.new(0, 0, 0), Visible = false}),
+                dist = createDrawing("Text", {Center = true, Size = 13, Font = 2, Color = Color3.new(1,1,1), Outline = true, OutlineColor = Color3.new(0, 0, 0), Visible = false})
             }
             tracerObjects[player] = createDrawing("Line", {Thickness = 1, Visible = false})
         end
@@ -1756,7 +1895,7 @@ table.insert(scriptConnections, RunService.RenderStepped:Connect(function()
             for i, seat in ipairs(vehicles) do
                 if seat and seat.Parent then
                     if not vehicleDrawings[i] then 
-                        vehicleDrawings[i] = { box = createDrawing("Square", {Thickness = 1, Color = Color3.fromRGB(150, 150, 255), Filled = false, Visible = false}), text = createDrawing("Text", {Center = true, Size = 13, Font = 2, Color = Color3.fromRGB(150, 150, 255), Outline = true, Visible = false}) } end
+                        vehicleDrawings[i] = { box = createDrawing("Square", {Thickness = 1, Color = Color3.fromRGB(150, 150, 255), Filled = false, Visible = false}), text = createDrawing("Text", {Center = true, Size = 13, Font = 2, Color = Color3.fromRGB(150, 150, 255), Outline = true, OutlineColor = Color3.new(0, 0, 0), Visible = false}) } end
                     pcall(function()
                         local model = seat:FindFirstAncestorOfClass("Model")
                         local cf, size = seat.CFrame, seat.Size
@@ -1790,8 +1929,7 @@ table.insert(scriptConnections, RunService.RenderStepped:Connect(function()
                             local centerPos, centerOnScreen = Camera:WorldToViewportPoint(cf.Position)
                             if centerOnScreen and centerPos.Z > 0 then
                                 vehicleDrawings[i].box.Visible = false
-                                local dist = math.floor((Camera.CFrame.Position - cf.Position).Magnitude)
-                                vehicleDrawings[i].text.Text = "[" .. name .. "] " .. dist .. "m"
+                                local dist = math.floor((Camera.CFrame.Position - cf.Position).Magnitude); vehicleDrawings[i].text.Text = "[" .. name .. "] " .. dist .. "m"
                                 vehicleDrawings[i].text.Position = Vector2.new(centerPos.X, centerPos.Y)
                                 vehicleDrawings[i].text.Visible = true
                             else vehicleDrawings[i].box.Visible = false
@@ -1826,7 +1964,7 @@ table.insert(scriptConnections, RunService.RenderStepped:Connect(function()
             local currentSubs = {}
             for _, obj in ipairs(sysCache.subs) do if obj:IsA("Model") then table.insert(currentSubs, obj) end end
             for i, model in ipairs(currentSubs) do
-                if not subDrawings[i] then subDrawings[i] = { box = createDrawing("Square", {Thickness = 1, Color = Color3.fromRGB(0, 255, 255), Filled = false, Visible = false}), text = createDrawing("Text", {Center = true, Size = 13, Font = 2, Color = Color3.fromRGB(0, 255, 255), Outline = true, Visible = false}) } end
+                if not subDrawings[i] then subDrawings[i] = { box = createDrawing("Square", {Thickness = 1, Color = Color3.fromRGB(0, 255, 255), Filled = false, Visible = false}), text = createDrawing("Text", {Center = true, Size = 13, Font = 2, Color = Color3.fromRGB(0, 255, 255), Outline = true, OutlineColor = Color3.new(0, 0, 0), Visible = false}) } end
                 pcall(function()
                     local cf, size = model:GetBoundingBox()
                     if cf.Position.Y < 0 then subDrawings[i].box.Visible = false
@@ -1870,7 +2008,7 @@ table.insert(scriptConnections, RunService.RenderStepped:Connect(function()
             local allowed = { ["S-70 Okhotnik"] = true, ["MQ-1 Predator"] = true, ["TB2 Bayraktar"] = true, ["MQ-9 Reaper"] = true }
             for _, obj in ipairs(sysCache.uavs) do if obj:IsA("Model") and allowed[obj.Name] then table.insert(currentUavs, obj) end end
             for i, model in ipairs(currentUavs) do
-                if not uavDrawings[i] then uavDrawings[i] = { box = createDrawing("Square", {Thickness = 1, Color = Color3.fromRGB(255, 140, 0), Filled = false, Visible = false}), text = createDrawing("Text", {Center = true, Size = 13, Font = 2, Color = Color3.fromRGB(255, 140, 0), Outline = true, Visible = false}) } end
+                if not uavDrawings[i] then uavDrawings[i] = { box = createDrawing("Square", {Thickness = 1, Color = Color3.fromRGB(255, 140, 0), Filled = false, Visible = false}), text = createDrawing("Text", {Center = true, Size = 13, Font = 2, Color = Color3.fromRGB(255, 140, 0), Outline = true, OutlineColor = Color3.new(0, 0, 0), Visible = false}) } end
                 pcall(function()
                     local cf, size = model:GetBoundingBox()
                     local boxScale = 0.5
@@ -1913,7 +2051,7 @@ table.insert(scriptConnections, RunService.RenderStepped:Connect(function()
             local allowed = { ["Ripsaw M5"] = true, ["Aselsan Gurz"] = true }
             for _, obj in ipairs(sysCache.ugvs) do if obj:IsA("Model") and allowed[obj.Name] then table.insert(currentUgvs, obj) end end
             for i, model in ipairs(currentUgvs) do
-                if not ugvDrawings[i] then ugvDrawings[i] = { box = createDrawing("Square", {Thickness = 1, Color = Color3.fromRGB(120, 255, 120), Filled = false, Visible = false}), text = createDrawing("Text", {Center = true, Size = 13, Font = 2, Color = Color3.fromRGB(120, 255, 120), Outline = true, Visible = false}) } end
+                if not ugvDrawings[i] then ugvDrawings[i] = { box = createDrawing("Square", {Thickness = 1, Color = Color3.fromRGB(120, 255, 120), Filled = false, Visible = false}), text = createDrawing("Text", {Center = true, Size = 13, Font = 2, Color = Color3.fromRGB(120, 255, 120), Outline = true, OutlineColor = Color3.new(0, 0, 0), Visible = false}) } end
                 pcall(function()
                     local cf, size = model:GetBoundingBox()
                     local scale = 0.65
@@ -1952,185 +2090,3 @@ table.insert(scriptConnections, RunService.RenderStepped:Connect(function()
         end
     end
 end))
-
-local lastAirdropCollectTime = 0
-
-task.spawn(function()
-    while isScriptActive do
-        task.wait(1)
-
-        if settings.autoAirdrop or settings.autoDrone then
-            local targetObj = nil
-            local isAirdrop = false
-            local collectibles = workspace:FindFirstChild("Game Systems") and workspace["Game Systems"]:FindFirstChild("Collectibles Workspace")
-            
-            if collectibles then
-                if settings.autoAirdrop and tick() - lastAirdropCollectTime > 60 then
-                    for _, obj in ipairs(collectibles:GetDescendants()) do
-                        if obj:IsA("Model") and string.find(string.lower(obj.Name), "airdrop_") then
-                            local cf = obj:GetBoundingBox()
-                            if cf.Position.Y > 0 then
-                                targetObj = obj
-                                isAirdrop = true
-                                break
-                            end
-                        end
-                    end
-                end
-                
-                if not targetObj and settings.autoDrone then
-                    for _, obj in ipairs(collectibles:GetDescendants()) do
-                        if obj:IsA("Model") and string.find(string.lower(obj.Name), "crasheddrone") then
-                            local cf = obj:GetBoundingBox()
-                            local rayParams = RaycastParams.new()
-                            local validTerrain = {}
-                            local mapAssets = findChildLower(workspace, "map assets")
-                            
-                            if mapAssets then
-                                for _, child in ipairs(mapAssets:GetChildren()) do
-                                    local lowerName = string.lower(child.Name)
-                                    if string.find(lowerName, "terrain") then
-                                        for _, desc in ipairs(child:GetDescendants()) do
-                                            if desc:IsA("BasePart") or desc:IsA("Model") then
-                                                table.insert(validTerrain, desc)
-                                            end
-                                        end
-                                    elseif string.find(lowerName, "stronghold island") then
-                                        table.insert(validTerrain, child)
-                                    end
-                                end
-                            end
-                            
-                            if #validTerrain > 0 then
-                                rayParams.FilterDescendantsInstances = validTerrain
-                                rayParams.FilterType = Enum.RaycastFilterType.Include
-                                local rayResult = workspace:Raycast(cf.Position, Vector3.new(0, -8, 0), rayParams)
-                                
-                                if rayResult then
-                                    if not droneInteractions[obj] then
-                                        targetObj = obj
-                                        break
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-
-            if targetObj then
-                local char = LocalPlayer.Character
-                local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                local hum = char and char:FindFirstChild("Humanoid")
-                
-                local function checkAlive()
-                    return hum and hum.Health > 0 and isScriptActive
-                end
-                
-                if hrp and checkAlive() then
-                    local originalPos = hrp.CFrame
-                    local targetCF, targetSize = targetObj:GetBoundingBox()
-                    
-                    if isAirdrop then
-                        hrp.CFrame = targetCF + Vector3.new(0, targetSize.Y/2 + 2, 0)
-                        hrp.Velocity = Vector3.new(0,0,0)
-                        
-                        task.wait(0.2)
-                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-                        task.wait(3)
-                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-                        
-                        lastAirdropCollectTime = tick()
-                        hrp.CFrame = originalPos
-                        hrp.Velocity = Vector3.new(0, 0, 0)
-                    else
-                        if not autoDroneOriginalPos then
-                            autoDroneOriginalPos = originalPos
-                        end
-                        droneInteractions[targetObj] = true
-                        
-                        hrp.CFrame = targetCF + Vector3.new(0, targetSize.Y/2 + 2, 0)
-                        hrp.Velocity = Vector3.new(0,0,0)
-                        task.wait(0.2)
-                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-                        task.wait(3)
-                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-                        
-                        if not checkAlive() then continue end
-                        
-                        local baseCF = baseSpawnCFrame or CFrame.new(-503, 177, -1021)
-                        hrp.CFrame = baseCF
-                        hrp.Velocity = Vector3.new(0, 0, 0)
-                        task.wait(0.5)
-                        if hrp then hrp.Velocity = Vector3.new(0, 0, 0) end
-                        
-                        task.wait(7)
-                        
-                        if targetObj and targetObj.Parent and checkAlive() then
-                            local newCF = targetObj:GetBoundingBox()
-                            if (newCF.Position - targetCF.Position).Magnitude < 0.1 then
-                                hrp.CFrame = newCF + Vector3.new(0, targetSize.Y/2 + 2, 0)
-                                hrp.Velocity = Vector3.new(0,0,0)
-                                task.wait(0.2)
-                                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-                                task.wait(3)
-                                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-                                
-                                if checkAlive() then
-                                    hrp.CFrame = baseCF
-                                    hrp.Velocity = Vector3.new(0, 0, 0)
-                                    task.wait(0.5)
-                                    if hrp then hrp.Velocity = Vector3.new(0, 0, 0) end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-end)
-
-task.spawn(function()
-    task.wait(0.5)
-    if listfiles and readfile then
-        pcall(function()
-            local files = listfiles("")
-            local cfgNames = {}
-            local cfgDataCache = {}
-            for _, file in ipairs(files) do
-                local cfgName = file:match("WihikkCfg_(.*)%.json")
-                if cfgName then 
-                    table.insert(cfgNames, cfgName) 
-                    pcall(function()
-                        local decoded = HttpService:JSONDecode(readfile(file))
-                        cfgDataCache[cfgName] = decoded.__timestamp or 0
-                    end)
-                end
-            end
-            table.sort(cfgNames, function(a, b)
-                local aFav = favorites[a] or false
-                local bFav = favorites[b] or false
-                if aFav == bFav then return (cfgDataCache[a] or 0) > (cfgDataCache[b] or 0) end
-                return aFav and not bFav
-            end)
-            if #cfgNames > 0 then
-                currentConfigName = cfgNames[1]
-                if ConfigTextBox then ConfigTextBox.Text = currentConfigName end
-                if isfile("WihikkCfg_"..currentConfigName..".json") then
-                    local decoded = HttpService:JSONDecode(readfile("WihikkCfg_"..currentConfigName..".json"))
-                    for k, v in pairs(decoded) do
-                        if k == "binds" then
-                            for bindK, bindV in pairs(v) do
-                                settings.binds[bindK] = bindV and Enum.KeyCode[bindV] or nil
-                                if uiUpdaters["bind_"..bindK] then uiUpdaters["bind_"..bindK]() end
-                            end
-                        elseif k ~= "__timestamp" then
-                            if uiUpdaters[k] then uiUpdaters[k](v) else settings[k] = v end
-                        end
-                    end
-                end
-            end
-        end)
-    end
-end)
