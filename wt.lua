@@ -11,7 +11,7 @@ local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 
 local settings = {
-    aimbot = false, wallCheck = false, fov = 120, smoothness = 45,
+    aimbot = false, wallCheck = false, fov = 120, smoothness = 0,
     predict = true, predictStrength = 5,
     esp = true, espBoxes = true, espHealth = true, espDist = true, espNames = true,
     tracers = false, clickTp = false,
@@ -1516,7 +1516,50 @@ end
 createActionButton("Refresh Config List", ConfigGroup, function() refreshConfigs(true) end)
 
 task.spawn(function()
-    doLoadConfig()
+    task.wait(0.5)
+    if listfiles and readfile then
+        pcall(function()
+            local files = listfiles("")
+            local cfgNames = {}
+            local cfgDataCache = {}
+            for _, file in ipairs(files) do
+                local cfgName = file:match("WihikkCfg_(.*)%.json")
+                if cfgName then 
+                    table.insert(cfgNames, cfgName) 
+                    pcall(function()
+                        local decoded = HttpService:JSONDecode(readfile(file))
+                        cfgDataCache[cfgName] = decoded.__timestamp or 0
+                    end)
+                end
+            end
+            table.sort(cfgNames, function(a, b)
+                local aFav = favorites[a] or false
+                local bFav = favorites[b] or false
+                if aFav == bFav then return (cfgDataCache[a] or 0) > (cfgDataCache[b] or 0) end
+                return aFav and not bFav
+            end)
+            if #cfgNames > 0 then
+                currentConfigName = cfgNames[1]
+                if ConfigTextBox then ConfigTextBox.Text = currentConfigName end
+                if isfile("WihikkCfg_"..currentConfigName..".json") then
+                    isLoadingConfig = true
+                    local decoded = HttpService:JSONDecode(readfile("WihikkCfg_"..currentConfigName..".json"))
+                    for k, v in pairs(decoded) do
+                        if k == "binds" then
+                            for bindK, bindV in pairs(v) do
+                                settings.binds[bindK] = bindV and Enum.KeyCode[bindV] or nil
+                                if uiUpdaters["bind_"..bindK] then uiUpdaters["bind_"..bindK]() end
+                            end
+                        elseif k ~= "__timestamp" then
+                            if uiUpdaters[k] then uiUpdaters[k](v) else settings[k] = v end
+                        end
+                    end
+                    isLoadingConfig = false
+                end
+            end
+        end)
+    end
+    
     while isScriptActive do
         task.wait(2)
         if isMiscPageOpen then
@@ -2093,3 +2136,141 @@ table.insert(scriptConnections, RunService.RenderStepped:Connect(function()
         end
     end
 end))
+
+local lastAirdropCollectTime = 0
+
+task.spawn(function()
+    while isScriptActive do
+        task.wait(1)
+
+        if settings.autoAirdrop or settings.autoDrone then
+            local targetObj = nil
+            local isAirdrop = false
+            local collectibles = workspace:FindFirstChild("Game Systems") and workspace["Game Systems"]:FindFirstChild("Collectibles Workspace")
+            
+            if collectibles then
+                if settings.autoAirdrop and tick() - lastAirdropCollectTime > 60 then
+                    for _, obj in ipairs(collectibles:GetDescendants()) do
+                        if obj:IsA("Model") and string.find(string.lower(obj.Name), "airdrop_") then
+                            local cf = obj:GetBoundingBox()
+                            if cf.Position.Y > 0 then
+                                targetObj = obj
+                                isAirdrop = true
+                                break
+                            end
+                        end
+                    end
+                end
+                
+                if not targetObj and settings.autoDrone then
+                    for _, obj in ipairs(collectibles:GetDescendants()) do
+                        if obj:IsA("Model") and string.find(string.lower(obj.Name), "crasheddrone") then
+                            local cf = obj:GetBoundingBox()
+                            local rayParams = RaycastParams.new()
+                            local validTerrain = {}
+                            local mapAssets = findChildLower(workspace, "map assets")
+                            
+                            if mapAssets then
+                                for _, child in ipairs(mapAssets:GetChildren()) do
+                                    local lowerName = string.lower(child.Name)
+                                    if string.find(lowerName, "terrain") then
+                                        for _, desc in ipairs(child:GetDescendants()) do
+                                            if desc:IsA("BasePart") or desc:IsA("Model") then
+                                                table.insert(validTerrain, desc)
+                                            end
+                                        end
+                                    elseif string.find(lowerName, "stronghold island") then
+                                        table.insert(validTerrain, child)
+                                    end
+                                end
+                            end
+                            
+                            if #validTerrain > 0 then
+                                rayParams.FilterDescendantsInstances = validTerrain
+                                rayParams.FilterType = Enum.RaycastFilterType.Include
+                                local rayResult = workspace:Raycast(cf.Position, Vector3.new(0, -8, 0), rayParams)
+                                
+                                if rayResult then
+                                    if not droneInteractions[obj] then
+                                        targetObj = obj
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+
+            if targetObj then
+                local char = LocalPlayer.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                local hum = char and char:FindFirstChild("Humanoid")
+                
+                local function checkAlive()
+                    return hum and hum.Health > 0 and isScriptActive
+                end
+                
+                if hrp and checkAlive() then
+                    local originalPos = hrp.CFrame
+                    local targetCF, targetSize = targetObj:GetBoundingBox()
+                    
+                    if isAirdrop then
+                        hrp.CFrame = targetCF + Vector3.new(0, targetSize.Y/2 + 2, 0)
+                        hrp.Velocity = Vector3.new(0,0,0)
+                        
+                        task.wait(0.2)
+                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+                        task.wait(3)
+                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+                        
+                        lastAirdropCollectTime = tick()
+                        hrp.CFrame = originalPos
+                        hrp.Velocity = Vector3.new(0, 0, 0)
+                    else
+                        if not autoDroneOriginalPos then
+                            autoDroneOriginalPos = originalPos
+                        end
+                        droneInteractions[targetObj] = true
+                        
+                        hrp.CFrame = targetCF + Vector3.new(0, targetSize.Y/2 + 2, 0)
+                        hrp.Velocity = Vector3.new(0,0,0)
+                        task.wait(0.2)
+                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+                        task.wait(3)
+                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+                        
+                        if not checkAlive() then continue end
+                        
+                        local baseCF = baseSpawnCFrame or CFrame.new(-503, 177, -1021)
+                        hrp.CFrame = baseCF
+                        hrp.Velocity = Vector3.new(0, 0, 0)
+                        task.wait(0.5)
+                        if hrp then hrp.Velocity = Vector3.new(0, 0, 0) end
+                        
+                        task.wait(7)
+                        
+                        if targetObj and targetObj.Parent and checkAlive() then
+                            local newCF = targetObj:GetBoundingBox()
+                            if (newCF.Position - targetCF.Position).Magnitude < 0.1 then
+                                hrp.CFrame = newCF + Vector3.new(0, targetSize.Y/2 + 2, 0)
+                                hrp.Velocity = Vector3.new(0,0,0)
+                                task.wait(0.2)
+                                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+                                task.wait(3)
+                                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+                                
+                                if checkAlive() then
+                                    hrp.CFrame = baseCF
+                                    hrp.Velocity = Vector3.new(0, 0, 0)
+                                    task.wait(0.5)
+                                    if hrp then hrp.Velocity = Vector3.new(0, 0, 0) end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
