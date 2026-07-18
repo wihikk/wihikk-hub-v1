@@ -1639,57 +1639,6 @@ Footer.Font = Enum.Font.GothamMedium
 Footer.TextSize = 11
 Footer.TextXAlignment = Enum.TextXAlignment.Left
 
-local BtnHide = Instance.new("TextButton", Frame)
-BtnHide.Size = UDim2.new(0, 95, 0, 20)
-BtnHide.AnchorPoint = Vector2.new(1, 0)
-BtnHide.Position = UDim2.new(0.5, -5, 1, -25)
-BtnHide.BackgroundColor3 = Theme.OffColor
-BtnHide.Text = "Hide Menu"
-BtnHide.TextColor3 = Theme.TextMain
-BtnHide.Font = Enum.Font.GothamMedium
-BtnHide.TextSize = 10
-BtnHide.AutoButtonColor = false
-Instance.new("UICorner", BtnHide).CornerRadius = UDim.new(0, 4)
-local StrokeHide = Instance.new("UIStroke", BtnHide)
-StrokeHide.Color = Theme.Border
-StrokeHide.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-
-BtnHide.MouseButton1Click:Connect(function()
-    guiVisible = false
-    Frame.Visible = false
-    DevToolsBtn.Visible = false
-end)
-
-local BtnUnload = Instance.new("TextButton", Frame)
-BtnUnload.Size = UDim2.new(0, 95, 0, 20)
-BtnUnload.AnchorPoint = Vector2.new(0, 0)
-BtnUnload.Position = UDim2.new(0.5, 5, 1, -25)
-BtnUnload.BackgroundColor3 = Color3.fromRGB(60, 35, 35)
-BtnUnload.Text = "Unload Script"
-BtnUnload.TextColor3 = Color3.fromRGB(255, 255, 255)
-BtnUnload.Font = Enum.Font.GothamMedium
-BtnUnload.TextSize = 10
-BtnUnload.AutoButtonColor = false
-Instance.new("UICorner", BtnUnload).CornerRadius = UDim.new(0, 4)
-local StrokeUnload = Instance.new("UIStroke", BtnUnload)
-StrokeUnload.Color = Theme.Border
-StrokeUnload.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-
-BtnUnload.MouseButton1Click:Connect(function()
-    UnloadScript()
-end)
-
-local FooterUnload = Instance.new("TextLabel", Frame)
-FooterUnload.Size = UDim2.new(0, 130, 0, 20)
-FooterUnload.AnchorPoint = Vector2.new(1, 0)
-FooterUnload.Position = UDim2.new(1, -20, 1, -25)
-FooterUnload.BackgroundTransparency = 1
-FooterUnload.Text = "[Delete] - Unload Script"
-FooterUnload.TextColor3 = Theme.TextSub
-FooterUnload.Font = Enum.Font.GothamMedium
-FooterUnload.TextSize = 11
-FooterUnload.TextXAlignment = Enum.TextXAlignment.Right
-
 local guiVisible = false
 
 local sysCache = { subs = {}, uavs = {}, ugvs = {} }
@@ -1750,6 +1699,57 @@ local function UnloadScript()
         end
     end
 end
+
+local BtnHide = Instance.new("TextButton", Frame)
+BtnHide.Size = UDim2.new(0, 95, 0, 20)
+BtnHide.AnchorPoint = Vector2.new(1, 0)
+BtnHide.Position = UDim2.new(0.5, -5, 1, -25)
+BtnHide.BackgroundColor3 = Theme.OffColor
+BtnHide.Text = "Hide Menu"
+BtnHide.TextColor3 = Theme.TextMain
+BtnHide.Font = Enum.Font.GothamMedium
+BtnHide.TextSize = 10
+BtnHide.AutoButtonColor = false
+Instance.new("UICorner", BtnHide).CornerRadius = UDim.new(0, 4)
+local StrokeHide = Instance.new("UIStroke", BtnHide)
+StrokeHide.Color = Theme.Border
+StrokeHide.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+BtnHide.MouseButton1Click:Connect(function()
+    guiVisible = false
+    Frame.Visible = false
+    DevToolsBtn.Visible = false
+end)
+
+local BtnUnload = Instance.new("TextButton", Frame)
+BtnUnload.Size = UDim2.new(0, 95, 0, 20)
+BtnUnload.AnchorPoint = Vector2.new(0, 0)
+BtnUnload.Position = UDim2.new(0.5, 5, 1, -25)
+BtnUnload.BackgroundColor3 = Color3.fromRGB(60, 35, 35)
+BtnUnload.Text = "Unload Script"
+BtnUnload.TextColor3 = Color3.fromRGB(255, 255, 255)
+BtnUnload.Font = Enum.Font.GothamMedium
+BtnUnload.TextSize = 10
+BtnUnload.AutoButtonColor = false
+Instance.new("UICorner", BtnUnload).CornerRadius = UDim.new(0, 4)
+local StrokeUnload = Instance.new("UIStroke", BtnUnload)
+StrokeUnload.Color = Theme.Border
+StrokeUnload.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+BtnUnload.MouseButton1Click:Connect(function()
+    UnloadScript()
+end)
+
+local FooterUnload = Instance.new("TextLabel", Frame)
+FooterUnload.Size = UDim2.new(0, 130, 0, 20)
+FooterUnload.AnchorPoint = Vector2.new(1, 0)
+FooterUnload.Position = UDim2.new(1, -20, 1, -25)
+FooterUnload.BackgroundTransparency = 1
+FooterUnload.Text = "[Delete] - Unload Script"
+FooterUnload.TextColor3 = Theme.TextSub
+FooterUnload.Font = Enum.Font.GothamMedium
+FooterUnload.TextSize = 11
+FooterUnload.TextXAlignment = Enum.TextXAlignment.Right
 
 table.insert(scriptConnections, UserInputService.InputBegan:Connect(function(input, gpe)
     if activeBindBtn then
