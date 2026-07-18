@@ -49,7 +49,7 @@ local function captureSpawn(char)
         local hrp = char:WaitForChild("HumanoidRootPart", 10)
         if hrp then
             task.wait(1) 
-            if isScriptActive then baseSpawnCFrame = hrp.CFrame end
+            if isScriptActive and baseSpawnCFrame == nil then baseSpawnCFrame = hrp.CFrame end
         end
     end)
 end
@@ -1001,6 +1001,11 @@ createDualActionButtons("TP to Base", "TP to Capture", MiscCombatGroup,
     function() if baseSpawnCFrame and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then LocalPlayer.Character.HumanoidRootPart.CFrame = baseSpawnCFrame end end,
     function() if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-503, 177, -1021) end end
 )
+createActionButton("Change TP Location", MiscCombatGroup, function()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        baseSpawnCFrame = LocalPlayer.Character.HumanoidRootPart.CFrame
+    end
+end)
 
 local EspGroup = createGroup(VisualsLeft)
 createToggle("Player ESP", EspGroup, "esp")
