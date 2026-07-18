@@ -1349,6 +1349,29 @@ RCancelBtn.MouseButton1Click:Connect(function()
     RenameModal.Visible = false
 end)
 
+local function doLoadConfig()
+    if readfile and isfile then
+        pcall(function()
+            if isfile("WihikkCfg_"..currentConfigName..".json") then
+                isLoadingConfig = true
+                local decoded = HttpService:JSONDecode(readfile("WihikkCfg_"..currentConfigName..".json"))
+                for k, v in pairs(decoded) do
+                    if k == "binds" then
+                        for bindK, bindV in pairs(v) do
+                            settings.binds[bindK] = bindV and Enum.KeyCode[bindV] or nil
+                            if uiUpdaters["bind_"..bindK] then uiUpdaters["bind_"..bindK]() end
+                        end
+                    elseif k ~= "__timestamp" then
+                        if uiUpdaters[k] then uiUpdaters[k](v) else settings[k] = v end
+                    end
+                end
+                isLoadingConfig = false
+            end
+        end)
+        isLoadingConfig = false
+    end
+end
+
 createDualActionButtons("Save Config", "Load Config", ConfigGroup, 
     function()
         if writefile then
@@ -1363,28 +1386,7 @@ createDualActionButtons("Save Config", "Load Config", ConfigGroup,
             refreshConfigs(true)
         end
     end,
-    function()
-        if readfile and isfile then
-            pcall(function()
-                if isfile("WihikkCfg_"..currentConfigName..".json") then
-                    isLoadingConfig = true
-                    local decoded = HttpService:JSONDecode(readfile("WihikkCfg_"..currentConfigName..".json"))
-                    for k, v in pairs(decoded) do
-                        if k == "binds" then
-                            for bindK, bindV in pairs(v) do
-                                settings.binds[bindK] = bindV and Enum.KeyCode[bindV] or nil
-                                if uiUpdaters["bind_"..bindK] then uiUpdaters["bind_"..bindK]() end
-                            end
-                        elseif k ~= "__timestamp" then
-                            if uiUpdaters[k] then uiUpdaters[k](v) else settings[k] = v end
-                        end
-                    end
-                    isLoadingConfig = false
-                end
-            end)
-            isLoadingConfig = false
-        end
-    end
+    doLoadConfig
 )
 
 local ConfigListWrapper = Instance.new("Frame", ConfigGroup)
@@ -1514,6 +1516,7 @@ end
 createActionButton("Refresh Config List", ConfigGroup, function() refreshConfigs(true) end)
 
 task.spawn(function()
+    doLoadConfig()
     while isScriptActive do
         task.wait(2)
         if isMiscPageOpen then
@@ -1613,7 +1616,7 @@ local BtnUnload = Instance.new("TextButton", Frame)
 BtnUnload.Size = UDim2.new(0, 95, 0, 20)
 BtnUnload.AnchorPoint = Vector2.new(0, 0)
 BtnUnload.Position = UDim2.new(0.5, 5, 1, -25)
-BtnUnload.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+BtnUnload.BackgroundColor3 = Color3.fromRGB(60, 35, 35)
 BtnUnload.Text = "Unload Script"
 BtnUnload.TextColor3 = Color3.fromRGB(255, 255, 255)
 BtnUnload.Font = Enum.Font.GothamMedium
